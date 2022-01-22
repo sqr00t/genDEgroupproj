@@ -11,6 +11,7 @@
     "kevinrose.vsc-python-indent",
     "littlefoxteam.vscode-python-test-adapter",
     "ms-vscode-remote.remote-containers",
+    "ms-vscode.test-adapter-converter", // for Test Explorer UI extension activation
     "redhat.vscode-yaml",
     "redhat.vscode-yaml0"
   ],
