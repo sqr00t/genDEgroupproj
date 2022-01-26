@@ -25,14 +25,17 @@ services:
       - APP_DB_PASS=docker
       - APP_DB_NAME=docker
     volumes:
-      - ./db:/docker-entrypoint-initdb.d/
+    # https://geshan.com.np/blog/2021/12/docker-postgres/
+    # https://github.com/docker-library/docs/tree/master/postgres#initialization-scripts
+      - dbdata:/var/lib/postgresql/data
+      - ../devenv-init-scripts/01-init.sh:/docker-entrypoint-initdb.d/01-init-user-db.sh
     ports:
       - 5432:5432
   adminer:
     image: adminer
-    container_name: adminer_container
+    container_name: finalproject_devcontainer_adminer # fix for duplicate container instance error
     restart: always
     ports:
       - 8080:8080
 volumes:
-  example_db:
+  dbdata:

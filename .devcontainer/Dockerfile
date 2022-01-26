@@ -36,6 +36,8 @@ RUN apt-get update \
     gnupg-agent \
     software-properties-common \
     python-pip \
+    # building psycopg2-binary requires pg_config, installed with libpq-dev
+    libpq-dev \
     graphviz \
     jq \
     vim \
