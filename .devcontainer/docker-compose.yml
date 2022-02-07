@@ -28,7 +28,7 @@ services:
     # https://geshan.com.np/blog/2021/12/docker-postgres/
     # https://github.com/docker-library/docs/tree/master/postgres#initialization-scripts
       - dbdata:/var/lib/postgresql/data
-      - ../devenv-init-scripts/01-init.sh:/docker-entrypoint-initdb.d/01-init-user-db.sh
+      - devenv-init-scripts/01-init.sh:/docker-entrypoint-initdb.d/01-init-user-db.sh
     ports:
       - 5432:5432
   adminer:
