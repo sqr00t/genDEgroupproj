@@ -1,6 +1,8 @@
 #import modin.pandas as pd ##EXPERIMENTAL (modin is a lot faster for larger datasets, requires config)
 import pandas as pd
-from hashlib import sha256
+from hashlib import shake_256
+from sqlalchemy import create_engine
+from sqlalchemy import TIMESTAMP as ts
 
 ### Load csv. csv does not have header in first row, set header=None
 df = pd.read_csv('chesterfield_25-08-2021_09-00-00.csv', header=None)
@@ -29,7 +31,7 @@ df['timestamp'] = pd.to_datetime(df['timestamp'])
 ## concatenated string of values in row. When using pd.to_sql(), add index=False arg.
 # Deprecated: Copy index to new 'order_id' column
 #df['order_id'] = df.index
-df['order_id'] = df.astype(str).sum(1).apply(lambda x: sha256(x.encode()).hexdigest())
+df['order_id'] = df.astype(str).sum(1).apply(lambda x: shake_256(x.encode()).hexdigest(8))
 
 ### Remove sensitive data (customer_name and card_number). <Drop>/Hash
 
@@ -37,7 +39,7 @@ df['order_id'] = df.astype(str).sum(1).apply(lambda x: sha256(x.encode()).hexdig
 def hash_col(col_name):
     df[col_name] = df[col_name].apply(
         lambda x: 
-            sha256(x.encode()).hexdigest()
+            shake_256(x.encode()).hexdigest(8)
     )
 
 # Hash customer_name.
@@ -75,7 +77,7 @@ df.head(10)
 
 ## stores table needs to have: store_id, store_name
 stores_table = pd.DataFrame(df[['store_name']]).drop_duplicates(subset='store_name', keep='first')
-stores_table['store_id'] = stores_table.astype(str).sum(1).apply(lambda x: sha256(x.encode()).hexdigest())
+stores_table['store_id'] = stores_table.astype(str).sum(1).apply(lambda x: shake_256(x.encode()).hexdigest(5))
 
 # Inspect
 stores_table
@@ -97,7 +99,7 @@ orders_table
 products_table = pd.DataFrame(df[['item_name', 'item_size', 'item_price']]).drop_duplicates(ignore_index=True)
 
 # new column: products_id is a hash of concatenated strings of row values. may not require after drop_duplicates
-products_table['product_id'] = products_table.astype(str).sum(1).apply(lambda x: sha256(x.encode()).hexdigest())
+products_table['product_id'] = products_table.astype(str).sum(1).apply(lambda x: shake_256(x.encode()).hexdigest(8))
 
 # Inspect
 products_table
@@ -138,3 +140,26 @@ check_product = orders_products.iloc[0]['product_id']
 
 fetched_product = products_table.loc[products_table['product_id'] == check_product]
 fetched_order = orders_table.loc[orders_table['order_id'] == check_order]
+
+
+###To SQL script
+def send_df(tablename, dataframe, indexing=None):    
+    # Database SQLAlchemy engine
+    engine = create_engine(f'postgresql+psycopg2://root:password@localhost/postgres')
+    
+    # Sets indexing of df to push to db
+    if indexing == None:
+        index_bool = False
+    else:
+        indexing = indexing
+        index_bool = True
+    
+    dataframe.to_sql(name=tablename, con=engine, if_exists='append', index=index_bool, index_label=indexing, dtype={'timestamp': ts(timezone=False)})
+
+    # Close engine and connection - does engine auto-close connections and its pooled connection(s)?
+    engine.dispose()
+
+send_df("stores", stores_table)
+send_df("orders", orders_table)
+send_df("products", products_table)
+send_df("orders_products", orders_products)
