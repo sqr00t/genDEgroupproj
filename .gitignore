@@ -131,3 +131,4 @@ dmypy.json
 
 # Other stuff
 data/dask-worker-space/
+.DS_Store
