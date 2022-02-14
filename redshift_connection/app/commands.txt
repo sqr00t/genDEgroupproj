@@ -20,3 +20,32 @@ aws s3 cp ../templates/testssm_params_lambda_layer.yaml s3://sqr00t-cf/templates
 
 creating stack:
 aws cloudformation create-stack --stack-name sqr00t-test-lambdalayer-ssmparams --template-url https://sqr00t-cf.s3.eu-west-1.amazonaws.com/templates/testssm_params_lambda_layer.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='sqr00t-cf' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/lambda_function.zip' ParameterKey=BucketName,ParameterValue='sqr00t-ssmparams' --capabilities CAPABILITY_IAM
+
+
+
+Lambda test version 2: (with etl functionality, no layer)
+pandas not found in lambda layer, rebuild with pandas requirements:
+docker run --rm -v ${PWD}:/var/task "lambci/lambda:build-python3.8" /bin/sh -c "pip install -r requirements_testetl.txt -t build/packages; cd build/packages && zip -r ../lambda_function_test_etl.zip .; cd ../../; rm -r build/packages; zip -g build/lambda_function_test_etl.zip etl_testing.py; exit"
+
+copy both zips to bucket:
+aws s3 cp build/lambda_function_test_etl.zip s3://sqr00t-cf/lambdafunctions/; aws s3 cp build/lambda_layer_v1.zip s3://sqr00t-cf/lambdalayers/
+
+copy template to bucket:
+aws s3 cp ../templates/test_etl_lambda.yaml s3://sqr00t-cf/templates/
+
+creating stack:
+aws cloudformation create-stack --stack-name sqr00t-testetl --template-url https://sqr00t-cf.s3.eu-west-1.amazonaws.com/templates/test_etl_lambda.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='sqr00t-cf' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/lambda_function_test_etl.zip' ParameterKey=BucketName,ParameterValue='sqr00t-etltest' --capabilities CAPABILITY_IAM
+
+
+
+Lambda Layer test version 2: (with etl functionality)
+docker run --rm -v ${PWD}:/var/task "lambci/lambda:build-python3.8" /bin/sh -c "pip install -r requirements_testetl.txt -t build/packages/python; cd build/packages && zip -r ../lambda_layer_v1.zip python; cd ../../; rm -r build/packages; zip -r build/lambda_function_test_etl.zip etl_testing.py; exit"
+
+copy both zips to bucket:
+aws s3 cp build/lambda_function_test_etl.zip s3://sqr00t-cf/lambdafunctions/; aws s3 cp build/lambda_layer_v1.zip s3://sqr00t-cf/lambdalayers/
+
+copy template to bucket:
+aws s3 cp ../templates/test_etl_lambda_layer.yaml s3://sqr00t-cf/templates/
+
+creating stack:
+aws cloudformation create-stack --stack-name sqr00t-testetl --template-url https://sqr00t-cf.s3.eu-west-1.amazonaws.com/templates/test_etl_lambda_layer.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='sqr00t-cf' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/lambda_function_test_etl.zip' ParameterKey=BucketName,ParameterValue='sqr00t-etltest' --capabilities CAPABILITY_IAM
