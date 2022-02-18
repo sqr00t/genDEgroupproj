@@ -49,3 +49,21 @@ aws s3 cp ../templates/test_etl_lambda_layer.yaml s3://sqr00t-cf/templates/
 
 creating stack:
 aws cloudformation create-stack --stack-name sqr00t-testetl --template-url https://sqr00t-cf.s3.eu-west-1.amazonaws.com/templates/test_etl_lambda_layer.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='sqr00t-cf' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/lambda_function_test_etl.zip' ParameterKey=BucketName,ParameterValue='sqr00t-etltest' --capabilities CAPABILITY_IAM
+
+
+
+** LATEST VERSION **
+Deployment etl_v1.1 (path bug-fix with etl functionality and lambda layers):
+docker run --rm -v ${PWD}:/var/task "lambci/lambda:build-python3.8" /bin/sh -c "pip install -r requirements_testetl.txt -t build/packages/python; cd build/packages && zip -r ../lambda_layer_v1.zip python; cd ../../; rm -r build/packages; zip -r build/etl_lambdafunction_v1.1.zip etl_v1.1.py; exit"
+
+copy both zips to bucket:
+aws s3 cp build/etl_lambdafunction_v1.1.zip s3://team3-deployment/lambdafunctions/; aws s3 cp build/lambda_layer_v1.zip s3://team3-deployment/lambdalayers/
+
+copy template to bucket:
+aws s3 cp ../templates/etl_stack_v1.1.yaml s3://team3-deployment/templates/
+
+creating stack:
+aws cloudformation create-stack --stack-name team3-deployment --template-url https://team3-deployment.s3.eu-west-1.amazonaws.com/templates/etl_stack_v1.1.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='team3-deployment' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/etl_lambdafunction_v1.1.zip' ParameterKey=BucketName,ParameterValue='team3-data' --capabilities CAPABILITY_IAM
+
+uncomment .yaml then update-stack:
+aws cloudformation update-stack --stack-name team3-deployment --template-url https://team3-deployment.s3.eu-west-1.amazonaws.com/templates/etl_stack_v1.1.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='team3-deployment' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/etl_lambdafunction_v1.1.zip' ParameterKey=BucketName,ParameterValue='team3-data' --capabilities CAPABILITY_IAM
