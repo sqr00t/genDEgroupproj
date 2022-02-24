@@ -6,35 +6,21 @@ from boto3 import resource
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 s3 = resource('s3')
-
-def handler(event,context):
-    logger.info(event)
-    bucket_name = event['Records'][0]['s3']['bucket']['name']
-    s3_file_name = event['Records'][0]['s3']['object']['key'] # '2022/2/16/widnes_16-02-2022_08-00-00.csv'
-    
-    try:
-        copy_source = {
-            'Bucket': bucket_name,
-            'Key': s3_file_name
-            }
-        bucket = s3.Bucket('team3-demo-raw')
-        bucket.copy(copy_source, s3_file_name)
-        logger.info(f"Successfully copied file '{s3_file_name}' to team3-demo-raw")
-    except Exception as e:
-        logger.info(e)
        
-def deprecated_csv_to_bucket(csvname: str, _dataframe: pd.DataFrame, bucketname: str):
+def csv_to_bucket(csvname: str, _dataframe: pd.DataFrame):
     try:
         ### Save processed _dataframe to .csv in tmp
         _dataframe.to_csv(f"/tmp/{csvname}", header=False, index=False)
+        logger.info(f"Extract and Transformation completed to: '{csvname}'")
 
         ### Upload CSV to bucket with s3 resource
-        s3.meta.client.upload_file(f"/tmp/{csvname}", bucketname, csvname)
+        s3.meta.client.upload_file(f"/tmp/{csvname}", 'team3-demo-processed', csvname)
+        logger.info(f"Uploaded '{csvname}' to team3-demo-processed bucket root")
 
     except Exception as e:
         logger.info(e)
 
-def deprecated_handler(event, context):
+def handler(event, context):
     ### Stuff to do when triggered on new csv in bucket event
     logger.info(event)
     bucket_name = event['Records'][0]['s3']['bucket']['name']
@@ -131,7 +117,7 @@ def deprecated_handler(event, context):
     orders_products_final = pd.DataFrame(orders_products[['order_id', 'product_id', 'quantity']])
 
     ### Save _processed.csv to /tmp, then send to respective bucket
-    deprecated_csv_to_bucket(f"{file_name}_stores.csv", stores_final, 'team3-stores')
-    deprecated_csv_to_bucket(f"{file_name}_orders.csv", orders_final, 'team3-orders')
-    deprecated_csv_to_bucket(f"{file_name}_products.csv", products_final, 'team3-products')
-    deprecated_csv_to_bucket(f"{file_name}_ordersproducts.csv", orders_products_final, 'team3-ordersproducts')
+    csv_to_bucket(f"{file_name}_stores.csv", stores_final)
+    csv_to_bucket(f"{file_name}_orders.csv", orders_final)
+    csv_to_bucket(f"{file_name}_products.csv", products_final)
+    csv_to_bucket(f"{file_name}_ordersproducts.csv", orders_products_final)

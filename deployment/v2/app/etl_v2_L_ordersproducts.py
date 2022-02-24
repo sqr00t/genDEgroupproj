@@ -8,4 +8,4 @@ def handler(event, context):
     logger.info(event)
     s3_file_name = event['Records'][0]['s3']['object']['key']
 
-    insert_csv_redshift('stores', s3_file_name)
+    insert_csv_redshift('orders_products', s3_file_name)

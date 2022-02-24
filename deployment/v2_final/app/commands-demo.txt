@@ -1,0 +1,16 @@
+** LATEST VERSION **
+Deployment etl_v2 (decoupled ET and refactored L with lambda layers):
+docker run --rm -v ${PWD}:/var/task "lambci/lambda:build-python3.8" /bin/sh -c "pip install -r requirements_etlv2.txt -t build/packages/python; cd build/packages && zip -r ../lambda_layer_v2.zip python; cd ../../; rm -r build/packages; zip -r build/etl_v2_ET_demo.zip etl_v2_ET_demo.py; zip -r build/etl_v2_L.zip etl_v2_L.py InserterDemo.py; exit"
+
+copy both zips to bucket:
+aws s3 cp build/ s3://team3-deployment/lambdafunctions/ --recursive --include="*.zip" --exclude="lambda_layer_v2.zip"; aws s3 cp build/lambda_layer_v2.zip s3://team3-deployment/lambdalayers/
+
+copy template to bucket:
+aws s3 cp ../templates/create/ s3://team3-deployment/templates/ --recursive --include="*.yaml"
+
+creating stacks:
+echo "creating ET-demo-stack"; aws cloudformation create-stack --stack-name team3-demo-ET --template-url https://team3-deployment.s3.eu-west-1.amazonaws.com/templates/etl_stack_v2_ET_demo.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='team3-deployment' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/etl_v2_ET_demo.zip' ParameterKey=BucketName,ParameterValue='team3-demo-raw' --capabilities CAPABILITY_IAM; echo "creating load-demo-stack"; aws cloudformation create-stack --stack-name team3-demo-load --template-url https://team3-deployment.s3.eu-west-1.amazonaws.com/templates/etl_stack_v2_L.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='team3-deployment' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/etl_v2_L.zip' ParameterKey=BucketName,ParameterValue='team3-demo-processed' --capabilities CAPABILITY_IAM;
+
+upload uncommented .yaml then update-stacks:
+
+echo "uploading uncommented templates"; aws s3 cp ../templates/update/ s3://team3-deployment/templates/ --recursive --include="*.yaml"; echo "updating ET-demo-stack"; aws cloudformation update-stack --stack-name team3-demo-ET --template-url https://team3-deployment.s3.eu-west-1.amazonaws.com/templates/etl_stack_v2_ET_demo.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='team3-deployment' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/etl_v2_ET_demo.zip' ParameterKey=BucketName,ParameterValue='team3-demo-raw' --capabilities CAPABILITY_IAM; echo "updating load-demo-stack"; aws cloudformation update-stack --stack-name team3-demo-load --template-url https://team3-deployment.s3.eu-west-1.amazonaws.com/templates/etl_stack_v2_L.yaml --region eu-west-1 --parameters ParameterKey=DeploymentBucket,ParameterValue='team3-deployment' ParameterKey=DeploymentPackageKey,ParameterValue='lambdafunctions/etl_v2_L.zip' ParameterKey=BucketName,ParameterValue='team3-demo-processed' --capabilities CAPABILITY_IAM;

@@ -44,7 +44,7 @@ Resources:
               - logs:PutLogEvents
               - ssm:GetParameters
               - lambda:GetLayerVersion
-              - s3:GetObject
+              #- s3:GetObject
               #- s3:ListBucket
               #- s3:PutObject
             Resource: '*'
@@ -53,7 +53,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Runtime: python3.8
-      Handler: etl_v1.1.handler
+      Handler: etl_v2_L.handler
       Timeout: 600
       Role: !GetAtt LambdaFunctionRole.Arn
       Code:
@@ -70,11 +70,11 @@ Resources:
   LambdaLayer:
     Type: AWS::Lambda::LayerVersion
     Properties: 
-      LayerName: Team3LambdaLayer
-      Description: Team 3 ETL lambda layer
+      LayerName: Team3LambdaLayer2
+      Description: Team 3 ETL lambda layer v2
       Content: # parameterise later
         S3Bucket: team3-deployment
-        S3Key: lambdalayers/lambda_layer_v1.zip
+        S3Key: lambdalayers/lambda_layer_v2.zip
       CompatibleArchitectures: 
         - x86_64 
       CompatibleRuntimes:

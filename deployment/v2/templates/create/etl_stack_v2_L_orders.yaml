@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Template to deploy a lambda which is triggered by an S3 event.
+
+Parameters:
+  DeploymentBucket:
+    Type: String
+    Description: Enter the name of the S3 bucket where your deployment package is.
+  DeploymentPackageKey:
+    Type: String
+    Description: Enter the name of the S3 key of your deployment package.
+  BucketName:
+    Type: String
+    Description: Enter the name of S3 bucket you wish to create.
+
+Resources:
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+              - ssm.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      Path: "/"
+      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/ScopePermissions
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+      - PolicyName: LambdaLogsPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - ssm:GetParameters
+              - lambda:GetLayerVersion
+              #- s3:GetObject
+              #- s3:ListBucket
+              #- s3:PutObject
+            Resource: '*'
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.8
+      Handler: etl_v2_L_orders.handler
+      Timeout: 600
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: !Ref DeploymentPackageKey
+      VpcConfig:
+        SecurityGroupIds:
+          - sg-0ffebdada773368d5
+        SubnetIds:
+          - subnet-094bb267969b977e2
+      Layers:
+        - !Ref LambdaLayer
+
+  LambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties: 
+      LayerName: Team3LambdaLayer2
+      Description: Team 3 ETL lambda layer v2
+      Content: # parameterise later
+        S3Bucket: team3-deployment
+        S3Key: lambdalayers/lambda_layer_v2.zip
+      CompatibleArchitectures: 
+        - x86_64 
+      CompatibleRuntimes:
+        - python3.8
+
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref BucketName
+      #NotificationConfiguration:
+      #  LambdaConfigurations:
+      #    - Event: s3:ObjectCreated:*
+      #      Function: !GetAtt LambdaFunction.Arn
+
+  S3BucketPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt S3Bucket.Arn
