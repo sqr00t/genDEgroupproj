@@ -1,29 +1,45 @@
-deploy:
-    needs: [test]
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+# most envs not used. delete L7-13?
+env:
+  S3_TEMPLATE_BUCKET_NAME: "ahsan-bucket"
+  TEMPLATE_NAME: "etl_stack_v2_ET.yaml"
+  S3_DATA_BUCKET_NAME: "ahsan-bucket-2"
+  AWS_REGION_NAME: "eu-west-1"
+  CF_STACK_NAME: "ahsan-deployment"
+  S3_LOAD_BUCKET_NAME: "ahsan-bucket-ex3"
+
+jobs:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout source code
+    - name: Checkout-repo
+      id: Checkout-repo
       uses: actions/checkout@v2
 
-    - name: Generate deployment package
-      run: zip -r deploy.zip . -x '*.git*'
-
-    - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v20
+    - name: Build ETL deployment packages
+      run: |
+        docker run --rm -v ${PWD}:/var/task "lambci/lambda:build-python3.8" /bin/sh -c "pip install -r deployment/v2/app/requirements_etlv2.txt -t deployment/v2/app/build/packages/python; cd deployment/v2/app/build/packages && zip -r ../lambda_layer_v2.zip python; cd ../../; rm -r build/packages; zip -r build/etl_v2_ET.zip etl_v2_ET.py; zip -r build/etl_v2_L_stores.zip etl_v2_L_stores.py inserter.py; zip -r build/etl_v2_L_orders.zip etl_v2_L_orders.py inserter.py; zip -r build/etl_v2_L_products.zip etl_v2_L_products.py inserter.py; zip -r build/etl_v2_L_ordersproducts.zip etl_v2_L_ordersproducts.py inserter.py; exit"
+  
+  # Configure AWS Credential
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
       with:
-      
-      	// Remember the secrets we embedded? this is how we access them
-        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        
-        // Replace the values here with your names you submitted in one of 
-        // The previous sections
-        application_name: django-github-actions-aws
-        environment_name: django-github-actions-aws
-        
-        // The version number could be anything. You can find a dynamic way 
-        // Of doing this.
-        version_label: 12348
-        region: "eu-west-1"
-        deployment_package: deploy.zip
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+    - name: Uploading deployment packages
+      run: |
+        aws s3 cp deployment/v2/app/build/ s3://ahsan-bucket/lambdafunctions/ --recursive --include="*.zip" --exclude="lambda_layer_v2.zip"; aws s3 cp deployment/v2/app/build/lambda_layer_v2.zip s3://ahsan-bucket/lambdalayers/
+
+    - name: Check team3 stacks status
+      run: |
+        echo "Checking team3 stacks status";
+        echo "Check deployment-stack status: " && aws cloudformation describe-stacks --stack-name team3-deployment --query 'Stacks[?StackName==`team3-deployment`].StackStatus' --region eu-west-1 --output text;
+        echo "Check orders-stack status: " && aws cloudformation describe-stacks --stack-name team3-demo-ET --query 'Stacks[?StackName==`team3-demo-ET`].StackStatus' --region eu-west-1 --output text;
+        echo "Check products-stack status: " && aws cloudformation describe-stacks --stack-name team3-demo-load --query 'Stacks[?StackName==`team3-demo-load`].StackStatus' --region eu-west-1 --output text;
